@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { UplinkError } from "./errors.js";
-import { getRepositoryStatus, initializeRepository } from "./repository.js";
+import { getRepositoryStatus, initializeRepository, rebindRepository } from "./repository.js";
 
 const HELP = `Usage: uplink <command> [options]
 
@@ -10,10 +10,12 @@ Local-first personal Repository for AI conversations.
 
 Commands:
   init       Initialize a Repository in the current directory
+  rebind     Point this device at another existing Repository
   status     Show the bound Repository and its health
 
 Options:
   --json     Print a stable machine-readable result
+  --yes      Confirm a rebind after reviewing the source and target paths
   -h, --help Show this help
 `;
 
@@ -51,6 +53,25 @@ async function main(): Promise<void> {
           `Health: ${result.health.status}`,
           "",
         ].join("\n"));
+      }
+      return;
+    }
+
+    if (command === "rebind") {
+      const commandIndex = args.indexOf(command);
+      const targetPath = args[commandIndex + 1];
+      if (!targetPath || targetPath.startsWith("-")) {
+        throw new UplinkError(
+          "REBIND_TARGET_REQUIRED",
+          "The rebind command requires a Repository path.",
+          "Run `uplink rebind <path>` with an existing Repository path.",
+        );
+      }
+      const result = await rebindRepository(targetPath, args.includes("--yes"));
+      if (json) {
+        process.stdout.write(`${JSON.stringify({ ok: true, command, operationId, result })}\n`);
+      } else {
+        process.stdout.write(`Rebound this device to Repository ${result.repository.id} at ${result.repository.path}\n`);
       }
       return;
     }

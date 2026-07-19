@@ -72,6 +72,15 @@ export interface RepositoryStatus {
   };
 }
 
+export interface ReboundRepository {
+  previousRepositoryPath: string | null;
+  repository: {
+    id: string;
+    version: number;
+    path: string;
+  };
+}
+
 function configDirectory(): string {
   if (process.env.UPLINK_CONFIG_DIR) {
     return path.resolve(process.env.UPLINK_CONFIG_DIR);
@@ -252,7 +261,7 @@ export async function getRepositoryStatus(): Promise<RepositoryStatus> {
     throw new UplinkError(
       "REPOSITORY_NOT_BOUND",
       "This device has no active Repository Binding.",
-      "Run `uplink init` inside the directory that should become the Repository.",
+      "Run `uplink rebind <path>` for an existing Repository, or run `uplink doctor` to diagnose the Binding.",
     );
   }
 
@@ -272,14 +281,14 @@ export async function getRepositoryStatus(): Promise<RepositoryStatus> {
     throw new UplinkError(
       "INVALID_REPOSITORY",
       `The bound path is not a valid Repository: ${repositoryPath}.`,
-      "Restore `uplink.json` from backup, then run `uplink status` again.",
+      "Restore `uplink.json`, run `uplink rebind <path>`, or run `uplink doctor` for diagnostics.",
     );
   }
   if (!isRepositoryConfig(repositoryConfig)) {
     throw new UplinkError(
       "INVALID_REPOSITORY",
       `The bound path has an unsupported or invalid Repository config: ${repositoryPath}.`,
-      "Restore a version 1 `uplink.json`, then run `uplink status` again.",
+      "Restore a version 1 `uplink.json`, run `uplink rebind <path>`, or run `uplink doctor`.",
     );
   }
 
@@ -309,6 +318,72 @@ export async function getRepositoryStatus(): Promise<RepositoryStatus> {
         layout: issues.length === 0 ? "ok" : "issues",
       },
       issues,
+    },
+  };
+}
+
+export async function rebindRepository(
+  targetPath: string,
+  confirmed: boolean,
+): Promise<ReboundRepository> {
+  const canonicalPath = path.resolve(targetPath);
+  if (!(await isDirectory(canonicalPath))) {
+    throw new UplinkError(
+      "REPOSITORY_NOT_FOUND",
+      `The rebind target does not exist at ${canonicalPath}.`,
+      "Choose an existing Repository, or run `uplink doctor` to diagnose the original Binding.",
+    );
+  }
+
+  let repositoryConfig: unknown;
+  try {
+    repositoryConfig = JSON.parse(await readFile(path.join(canonicalPath, "uplink.json"), "utf8"));
+  } catch {
+    throw new UplinkError(
+      "INVALID_REPOSITORY",
+      `The rebind target is not a valid Repository: ${canonicalPath}.`,
+      "Choose a Repository with a valid `uplink.json`, or run `uplink doctor`.",
+    );
+  }
+  if (!isRepositoryConfig(repositoryConfig)) {
+    throw new UplinkError(
+      "INVALID_REPOSITORY",
+      `The rebind target has an unsupported or invalid Repository config: ${canonicalPath}.`,
+      "Choose a version 1 Repository, or run `uplink doctor`.",
+    );
+  }
+
+  const bindingPath = path.join(configDirectory(), "binding.json");
+  const existingBinding = await readBindingIfPresent(bindingPath);
+  if (!confirmed) {
+    throw new UplinkError(
+      "REBIND_CONFIRMATION_REQUIRED",
+      `Rebinding changes the device Binding from ${existingBinding?.repositoryPath ?? "no Repository"} to ${canonicalPath}; it does not migrate data.`,
+      `Review both paths, then run \`uplink rebind ${JSON.stringify(canonicalPath)} --yes\` to confirm.`,
+    );
+  }
+
+  try {
+    await mkdir(path.dirname(bindingPath), { recursive: true });
+    await writeJsonAtomic(bindingPath, {
+      schemaVersion: SCHEMA_VERSION,
+      repositoryPath: canonicalPath,
+      boundAt: new Date().toISOString(),
+    } satisfies BindingConfig);
+  } catch {
+    throw new UplinkError(
+      "BINDING_WRITE_FAILED",
+      "Uplink could not update the device Binding.",
+      "Make the device config directory writable, then run the rebind command again.",
+    );
+  }
+
+  return {
+    previousRepositoryPath: existingBinding?.repositoryPath ?? null,
+    repository: {
+      id: repositoryConfig.repositoryId,
+      version: repositoryConfig.repositoryVersion,
+      path: canonicalPath,
     },
   };
 }
