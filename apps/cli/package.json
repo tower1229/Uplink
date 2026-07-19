@@ -1,0 +1,24 @@
+{
+  "name": "@tower1229/uplink",
+  "version": "0.1.0",
+  "description": "Local-first personal Repository for AI conversations",
+  "type": "module",
+  "bin": {
+    "uplink": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --alias:@tower1229/uplink-repository=../../packages/repository/src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@tower1229/uplink-repository": "0.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

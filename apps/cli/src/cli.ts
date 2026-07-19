@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 import { randomUUID } from "node:crypto";
-import { UplinkError } from "./errors.js";
-import { getRepositoryStatus, initializeRepository, rebindRepository } from "./repository.js";
+import {
+  getRepositoryStatus,
+  initializeRepository,
+  rebindRepository,
+  UplinkError,
+} from "@tower1229/uplink-repository";
 
 const HELP = `Usage: uplink <command> [options]
 

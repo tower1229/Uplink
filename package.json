@@ -1,19 +1,19 @@
 {
-  "name": "@tower1229/uplink",
+  "name": "uplink-monorepo",
   "version": "0.1.0",
+  "private": true,
   "description": "Local-first personal Repository for AI conversations",
   "type": "module",
-  "bin": {
-    "uplink": "dist/cli.js"
-  },
-  "files": [
-    "dist"
+  "workspaces": [
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test tests/**/*.test.ts",
-    "prepack": "npm run build"
+    "build": "npm run build --workspace @tower1229/uplink-repository && npm run build --workspace @tower1229/uplink",
+    "typecheck": "npm run typecheck --workspace @tower1229/uplink-repository && npm run build --workspace @tower1229/uplink-repository && npm run typecheck --workspace @tower1229/uplink",
+    "test": "npm run build && tsx --test tests/**/*.test.ts",
+    "check": "npm run typecheck && npm test",
+    "pack:cli": "npm pack --workspace @tower1229/uplink"
   },
   "engines": {
     "node": ">=20"
@@ -21,6 +21,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "esbuild": "^0.28.1",
     "tsx": "^4.20.0",
     "typescript": "^5.8.0"
   }

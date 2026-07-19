@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
+const cliPackageRoot = path.join(projectRoot, "apps", "cli");
 
 test("packed CLI installs into an isolated prefix and shows help outside the source tree", () => {
   const sandbox = mkdtempSync(path.join(tmpdir(), "uplink-install-"));
@@ -14,7 +15,7 @@ test("packed CLI installs into an isolated prefix and shows help outside the sou
     npm_config_cache: path.join(sandbox, "npm-cache"),
   };
   const packOutput = execFileSync("npm.cmd", ["pack", "--json", "--pack-destination", sandbox], {
-    cwd: projectRoot,
+    cwd: cliPackageRoot,
     encoding: "utf8",
     env: commandEnvironment,
     shell: process.platform === "win32",

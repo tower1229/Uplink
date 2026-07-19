@@ -1,3 +1,39 @@
+# Dependencies and workspace outputs
 node_modules/
 dist/
+coverage/
+*.tsbuildinfo
+
+# Test and browser artifacts
+test-results/
+playwright-report/
+blob-report/
+
+# Package and tool caches
 *.tgz
+.npm/
+.turbo/
+.cache/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and temporary work
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.scratch/
+tmp/
+temp/
+
+# Editors and operating systems
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+Desktop.ini

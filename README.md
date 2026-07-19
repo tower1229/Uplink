@@ -2,10 +2,23 @@
 
 Uplink 是一个本地优先的个人 Conversation Repository。当前 CLI 支持初始化并绑定本机唯一的 Repository、从任意工作目录查看其基础健康状态，以及显式重新绑定已有 Repository。
 
+## Monorepo 结构
+
+```text
+apps/
+  cli/                    # 可全局安装的 uplink CLI
+packages/
+  repository/             # Binding 与 Repository 持久化边界
+tests/                    # 跨 workspace 的 CLI/Repository 验收测试
+```
+
+后续的 Extension、Bridge、Schemas、Import Adapter 和 Capture Engine 按运行时与模块边界加入 `apps/*` 或 `packages/*`，根包只负责 workspace 编排，不发布。
+
 ## 开发
 
 ```powershell
 npm.cmd install
+npm.cmd run check
 npm.cmd test
 npm.cmd run typecheck
 npm.cmd run build
@@ -14,7 +27,7 @@ npm.cmd run build
 ## 安装与使用
 
 ```powershell
-npm.cmd pack
+npm.cmd run pack:cli
 npm.cmd install --global .\tower1229-uplink-0.1.0.tgz
 
 mkdir my-uplink-repository

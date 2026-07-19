@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
-const cliPath = path.join(projectRoot, "src", "cli.ts");
+const cliPath = path.join(projectRoot, "apps", "cli", "src", "cli.ts");
 const tsxPath = path.join(projectRoot, "node_modules", "tsx", "dist", "cli.mjs");
 
 function invokeCli(args: string[], cwd: string, configDirectory: string): string {
