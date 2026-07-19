@@ -90,6 +90,7 @@ async function main(): Promise<void> {
           "Uplink could not complete the command.",
           "Run the command again, then run `uplink status` if the problem continues.",
         );
+    const event = `${command}.failed`;
     if (json) {
       process.stderr.write(`${JSON.stringify({
         ok: false,
@@ -97,14 +98,21 @@ async function main(): Promise<void> {
         error: {
           code: details.code,
           message: details.message,
-          event: `${command}.failed`,
+          event,
           formalRepositoryDataWritten: details.formalRepositoryDataWritten,
           operationId,
           recoveryAction: details.recoveryAction,
         },
       })}\n`);
     } else {
-      process.stderr.write(`${details.code}: ${details.message}\n${details.recoveryAction}\n`);
+      process.stderr.write([
+        `${details.code}: ${details.message}`,
+        `Event: ${event}`,
+        `Operation ID: ${operationId}`,
+        `Formal Repository data written: ${details.formalRepositoryDataWritten}`,
+        details.recoveryAction,
+        "",
+      ].join("\n"));
     }
     process.exitCode = 1;
   }

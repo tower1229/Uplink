@@ -119,6 +119,35 @@ async function isDirectory(directoryPath: string): Promise<boolean> {
   }
 }
 
+async function requireValidRepository(repositoryPath: string): Promise<RepositoryConfig> {
+  if (!(await isDirectory(repositoryPath))) {
+    throw new UplinkError(
+      "REPOSITORY_NOT_FOUND",
+      `The Repository does not exist at ${repositoryPath}.`,
+      "Restore that path or run `uplink rebind <path>` with another valid Repository.",
+    );
+  }
+
+  let repositoryConfig: unknown;
+  try {
+    repositoryConfig = JSON.parse(await readFile(path.join(repositoryPath, "uplink.json"), "utf8"));
+  } catch {
+    throw new UplinkError(
+      "INVALID_REPOSITORY",
+      `The path is not a valid Repository: ${repositoryPath}.`,
+      "Restore a valid `uplink.json` there or run `uplink rebind <path>` with another valid Repository.",
+    );
+  }
+  if (!isRepositoryConfig(repositoryConfig)) {
+    throw new UplinkError(
+      "INVALID_REPOSITORY",
+      `The path has an unsupported or invalid Repository config: ${repositoryPath}.`,
+      "Restore a version 1 `uplink.json` there or run `uplink rebind <path>` with another valid Repository.",
+    );
+  }
+  return repositoryConfig;
+}
+
 function isRepositoryConfig(value: unknown): value is RepositoryConfig {
   if (!value || typeof value !== "object") {
     return false;
@@ -261,36 +290,12 @@ export async function getRepositoryStatus(): Promise<RepositoryStatus> {
     throw new UplinkError(
       "REPOSITORY_NOT_BOUND",
       "This device has no active Repository Binding.",
-      "Run `uplink rebind <path>` for an existing Repository, or run `uplink doctor` to diagnose the Binding.",
+      "Run `uplink rebind <path>` with an existing Repository.",
     );
   }
 
   const repositoryPath = path.resolve(binding.repositoryPath);
-  if (!(await isDirectory(repositoryPath))) {
-    throw new UplinkError(
-      "REPOSITORY_NOT_FOUND",
-      `The bound Repository does not exist at ${repositoryPath}.`,
-      "Restore that path or run `uplink rebind <path>` to select a valid Repository.",
-    );
-  }
-
-  let repositoryConfig: unknown;
-  try {
-    repositoryConfig = JSON.parse(await readFile(path.join(repositoryPath, "uplink.json"), "utf8"));
-  } catch {
-    throw new UplinkError(
-      "INVALID_REPOSITORY",
-      `The bound path is not a valid Repository: ${repositoryPath}.`,
-      "Restore `uplink.json`, run `uplink rebind <path>`, or run `uplink doctor` for diagnostics.",
-    );
-  }
-  if (!isRepositoryConfig(repositoryConfig)) {
-    throw new UplinkError(
-      "INVALID_REPOSITORY",
-      `The bound path has an unsupported or invalid Repository config: ${repositoryPath}.`,
-      "Restore a version 1 `uplink.json`, run `uplink rebind <path>`, or run `uplink doctor`.",
-    );
-  }
+  const repositoryConfig = await requireValidRepository(repositoryPath);
 
   const issues: string[] = [];
   for (const directory of REPOSITORY_DIRECTORIES) {
@@ -327,31 +332,7 @@ export async function rebindRepository(
   confirmed: boolean,
 ): Promise<ReboundRepository> {
   const canonicalPath = path.resolve(targetPath);
-  if (!(await isDirectory(canonicalPath))) {
-    throw new UplinkError(
-      "REPOSITORY_NOT_FOUND",
-      `The rebind target does not exist at ${canonicalPath}.`,
-      "Choose an existing Repository, or run `uplink doctor` to diagnose the original Binding.",
-    );
-  }
-
-  let repositoryConfig: unknown;
-  try {
-    repositoryConfig = JSON.parse(await readFile(path.join(canonicalPath, "uplink.json"), "utf8"));
-  } catch {
-    throw new UplinkError(
-      "INVALID_REPOSITORY",
-      `The rebind target is not a valid Repository: ${canonicalPath}.`,
-      "Choose a Repository with a valid `uplink.json`, or run `uplink doctor`.",
-    );
-  }
-  if (!isRepositoryConfig(repositoryConfig)) {
-    throw new UplinkError(
-      "INVALID_REPOSITORY",
-      `The rebind target has an unsupported or invalid Repository config: ${canonicalPath}.`,
-      "Choose a version 1 Repository, or run `uplink doctor`.",
-    );
-  }
+  const repositoryConfig = await requireValidRepository(canonicalPath);
 
   const bindingPath = path.join(configDirectory(), "binding.json");
   const existingBinding = await readBindingIfPresent(bindingPath);
@@ -359,7 +340,7 @@ export async function rebindRepository(
     throw new UplinkError(
       "REBIND_CONFIRMATION_REQUIRED",
       `Rebinding changes the device Binding from ${existingBinding?.repositoryPath ?? "no Repository"} to ${canonicalPath}; it does not migrate data.`,
-      `Review both paths, then run \`uplink rebind ${JSON.stringify(canonicalPath)} --yes\` to confirm.`,
+      "Review both paths, then rerun the same command with `--yes` to confirm.",
     );
   }
 
