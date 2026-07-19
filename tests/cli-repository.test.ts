@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -35,7 +35,7 @@ test("init creates the versioned Repository layout and first device Binding", ()
 
   assert.equal(response.ok, true);
   assert.equal(response.command, "init");
-  assert.equal(response.result.repository.path, repositoryPath);
+  assert.equal(response.result.repository.path, realpathSync(repositoryPath));
   assert.match(response.result.repository.id, /^repo_[0-9a-f-]{36}$/);
   assert.equal(response.result.repository.version, 1);
   assert.equal(response.result.bindingCreated, true);
@@ -69,7 +69,7 @@ test("init creates the versioned Repository layout and first device Binding", ()
     repositoryPath: string;
   };
   assert.equal(binding.schemaVersion, 1);
-  assert.equal(binding.repositoryPath, repositoryPath);
+  assert.equal(binding.repositoryPath, realpathSync(repositoryPath));
 });
 
 test("init refuses to replace an existing Binding and does not create another Repository", () => {
@@ -113,7 +113,7 @@ test("init refuses to replace an existing Binding and does not create another Re
   const binding = JSON.parse(readFileSync(path.join(configDirectory, "binding.json"), "utf8")) as {
     repositoryPath: string;
   };
-  assert.equal(binding.repositoryPath, firstRepository);
+  assert.equal(binding.repositoryPath, realpathSync(firstRepository));
 });
 
 test("status resolves the Binding from an unrelated directory and reports Repository health", () => {
@@ -139,8 +139,8 @@ test("status resolves the Binding from an unrelated directory and reports Reposi
 
   assert.equal(response.ok, true);
   assert.equal(response.command, "status");
-  assert.equal(response.result.binding.repositoryPath, repositoryPath);
-  assert.equal(response.result.repository.path, repositoryPath);
+  assert.equal(response.result.binding.repositoryPath, realpathSync(repositoryPath));
+  assert.equal(response.result.repository.path, realpathSync(repositoryPath));
   assert.equal(response.result.repository.id, init.result.repository.id);
   assert.equal(response.result.repository.version, 1);
   assert.deepEqual(response.result.health, {
@@ -290,7 +290,7 @@ test("rebind requires explicit confirmation before switching to a valid Reposito
   );
   assert.equal(
     JSON.parse(readFileSync(path.join(firstConfigDirectory, "binding.json"), "utf8")).repositoryPath,
-    firstRepository,
+    realpathSync(firstRepository),
   );
 
   const confirmed = JSON.parse(invokeCli(
@@ -307,14 +307,14 @@ test("rebind requires explicit confirmation before switching to a valid Reposito
   };
   assert.equal(confirmed.ok, true);
   assert.equal(confirmed.command, "rebind");
-  assert.equal(confirmed.result.previousRepositoryPath, firstRepository);
-  assert.equal(confirmed.result.repository.path, secondRepository);
+  assert.equal(confirmed.result.previousRepositoryPath, realpathSync(firstRepository));
+  assert.equal(confirmed.result.repository.path, realpathSync(secondRepository));
 
   const status = JSON.parse(invokeCli(["status", "--json"], sandbox, firstConfigDirectory)) as {
     result: { binding: { repositoryPath: string }; repository: { path: string } };
   };
-  assert.equal(status.result.binding.repositoryPath, secondRepository);
-  assert.equal(status.result.repository.path, secondRepository);
+  assert.equal(status.result.binding.repositoryPath, realpathSync(secondRepository));
+  assert.equal(status.result.repository.path, realpathSync(secondRepository));
 });
 
 test("human-readable rebind failures include the operation id and write marker", () => {
@@ -397,7 +397,7 @@ test("rebind rejects invalid targets and never migrates Repository data", () => 
   assert.equal(existsSync(path.join(invalidTarget, "uplink.json")), false);
   assert.equal(
     JSON.parse(readFileSync(path.join(bindingConfigDirectory, "binding.json"), "utf8")).repositoryPath,
-    sourceRepository,
+    realpathSync(sourceRepository),
   );
 
   renameSync(sourceRepository, movedSourceRepository);
@@ -431,10 +431,10 @@ test("rebind can restore a missing device Binding without creating Repository da
   )) as { result: { previousRepositoryPath: string | null; repository: { path: string } } };
 
   assert.equal(response.result.previousRepositoryPath, null);
-  assert.equal(response.result.repository.path, repositoryPath);
+  assert.equal(response.result.repository.path, realpathSync(repositoryPath));
   assert.equal(readFileSync(path.join(repositoryPath, "uplink.json"), "utf8"), repositoryConfigBefore);
   assert.equal(
     JSON.parse(readFileSync(path.join(missingBindingConfig, "binding.json"), "utf8")).repositoryPath,
-    repositoryPath,
+    realpathSync(repositoryPath),
   );
 });

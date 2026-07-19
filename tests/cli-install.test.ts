@@ -7,6 +7,7 @@ import test from "node:test";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const cliPackageRoot = path.join(projectRoot, "apps", "cli");
+const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
 
 test("packed CLI installs into an isolated prefix and shows help outside the source tree", () => {
   const sandbox = mkdtempSync(path.join(tmpdir(), "uplink-install-"));
@@ -14,7 +15,7 @@ test("packed CLI installs into an isolated prefix and shows help outside the sou
     ...process.env,
     npm_config_cache: path.join(sandbox, "npm-cache"),
   };
-  const packOutput = execFileSync("npm.cmd", ["pack", "--json", "--pack-destination", sandbox], {
+  const packOutput = execFileSync(npmExecutable, ["pack", "--json", "--pack-destination", sandbox], {
     cwd: cliPackageRoot,
     encoding: "utf8",
     env: commandEnvironment,
@@ -23,7 +24,7 @@ test("packed CLI installs into an isolated prefix and shows help outside the sou
   const [{ filename }] = JSON.parse(packOutput) as [{ filename: string }];
   const tarball = path.join(sandbox, filename);
 
-  execFileSync("npm.cmd", ["install", "--global", "--prefix", sandbox, tarball], {
+  execFileSync(npmExecutable, ["install", "--global", "--prefix", sandbox, tarball], {
     cwd: sandbox,
     env: commandEnvironment,
     stdio: "pipe",

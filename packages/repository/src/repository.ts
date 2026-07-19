@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { UplinkError } from "./errors.js";
@@ -201,7 +201,7 @@ async function readBindingIfPresent(bindingPath: string): Promise<BindingConfig 
 }
 
 export async function initializeRepository(repositoryPath: string): Promise<InitializedRepository> {
-  const canonicalPath = path.resolve(repositoryPath);
+  const canonicalPath = await realpath(path.resolve(repositoryPath));
   const bindingPath = path.join(configDirectory(), "binding.json");
   const existingBinding = await readBindingIfPresent(bindingPath);
   if (existingBinding && path.resolve(existingBinding.repositoryPath) !== canonicalPath) {
@@ -294,8 +294,9 @@ export async function getRepositoryStatus(): Promise<RepositoryStatus> {
     );
   }
 
-  const repositoryPath = path.resolve(binding.repositoryPath);
-  const repositoryConfig = await requireValidRepository(repositoryPath);
+  const boundPath = path.resolve(binding.repositoryPath);
+  const repositoryConfig = await requireValidRepository(boundPath);
+  const repositoryPath = await realpath(boundPath);
 
   const issues: string[] = [];
   for (const directory of REPOSITORY_DIRECTORIES) {
@@ -331,8 +332,9 @@ export async function rebindRepository(
   targetPath: string,
   confirmed: boolean,
 ): Promise<ReboundRepository> {
-  const canonicalPath = path.resolve(targetPath);
-  const repositoryConfig = await requireValidRepository(canonicalPath);
+  const targetRepositoryPath = path.resolve(targetPath);
+  const repositoryConfig = await requireValidRepository(targetRepositoryPath);
+  const canonicalPath = await realpath(targetRepositoryPath);
 
   const bindingPath = path.join(configDirectory(), "binding.json");
   const existingBinding = await readBindingIfPresent(bindingPath);
