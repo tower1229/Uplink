@@ -11,7 +11,7 @@
   "scripts": {
     "build": "npm run build --workspace @tower1229/uplink-repository && npm run build --workspace @tower1229/uplink",
     "typecheck": "npm run typecheck --workspace @tower1229/uplink-repository && npm run build --workspace @tower1229/uplink-repository && npm run typecheck --workspace @tower1229/uplink",
-    "test": "npm run build && tsx --test tests/**/*.test.ts",
+    "test": "npm run build && node scripts/run-tests.mjs",
     "check": "npm run typecheck && npm test",
     "pack:cli": "npm pack --workspace @tower1229/uplink"
   },
