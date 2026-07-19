@@ -216,3 +216,28 @@ test("status errors are machine-readable and do not expose invalid config conten
   assert.equal(response.error.code, "INVALID_REPOSITORY");
   assert.doesNotMatch(attempt.stderr, new RegExp(sensitiveMessageBody));
 });
+
+test("status rejects an invalid Binding instead of reporting it healthy", () => {
+  const sandbox = mkdtempSync(path.join(tmpdir(), "uplink-invalid-binding-"));
+  const configDirectory = path.join(sandbox, "config");
+  mkdirSync(configDirectory);
+  writeFileSync(path.join(configDirectory, "binding.json"), JSON.stringify({
+    schemaVersion: 0,
+    repositoryPath: 42,
+    boundAt: "not-a-date",
+  }));
+
+  const attempt = spawnSync(process.execPath, [tsxPath, cliPath, "status", "--json"], {
+    cwd: sandbox,
+    encoding: "utf8",
+    env: { ...process.env, UPLINK_CONFIG_DIR: configDirectory },
+  });
+
+  assert.equal(attempt.status, 1);
+  const response = JSON.parse(attempt.stderr) as {
+    error: { code: string; formalRepositoryDataWritten: boolean; recoveryAction: string };
+  };
+  assert.equal(response.error.code, "INVALID_BINDING");
+  assert.equal(response.error.formalRepositoryDataWritten, false);
+  assert.match(response.error.recoveryAction, /restore/i);
+});

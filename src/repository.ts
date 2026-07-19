@@ -122,10 +122,50 @@ function isRepositoryConfig(value: unknown): value is RepositoryConfig {
     && typeof config.createdAt === "string";
 }
 
+function isBindingConfig(value: unknown): value is BindingConfig {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const binding = value as Partial<BindingConfig>;
+  return binding.schemaVersion === SCHEMA_VERSION
+    && typeof binding.repositoryPath === "string"
+    && path.isAbsolute(binding.repositoryPath)
+    && typeof binding.boundAt === "string"
+    && !Number.isNaN(Date.parse(binding.boundAt));
+}
+
+async function readBindingIfPresent(bindingPath: string): Promise<BindingConfig | undefined> {
+  let binding: unknown;
+  try {
+    binding = await readJsonIfPresent<unknown>(bindingPath);
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) {
+      throw new UplinkError(
+        "INVALID_BINDING",
+        `Uplink could not read the device Binding: ${bindingPath}.`,
+        "Make the device Binding readable, then run `uplink status` again.",
+      );
+    }
+    throw new UplinkError(
+      "INVALID_BINDING",
+      `The device Binding is not valid JSON: ${bindingPath}.`,
+      "Restore the device Binding from backup, then run `uplink status` again.",
+    );
+  }
+  if (binding !== undefined && !isBindingConfig(binding)) {
+    throw new UplinkError(
+      "INVALID_BINDING",
+      `The device Binding is unsupported or invalid: ${bindingPath}.`,
+      "Restore a version 1 device Binding, then run `uplink status` again.",
+    );
+  }
+  return binding;
+}
+
 export async function initializeRepository(repositoryPath: string): Promise<InitializedRepository> {
   const canonicalPath = path.resolve(repositoryPath);
   const bindingPath = path.join(configDirectory(), "binding.json");
-  const existingBinding = await readJsonIfPresent<BindingConfig>(bindingPath);
+  const existingBinding = await readBindingIfPresent(bindingPath);
   if (existingBinding && path.resolve(existingBinding.repositoryPath) !== canonicalPath) {
     throw new UplinkError(
       "REPOSITORY_ALREADY_BOUND",
@@ -177,12 +217,21 @@ export async function initializeRepository(repositoryPath: string): Promise<Init
 
   let bindingCreated = false;
   if (!existingBinding) {
-    await mkdir(path.dirname(bindingPath), { recursive: true });
-    await writeJsonAtomic(bindingPath, {
-      schemaVersion: SCHEMA_VERSION,
-      repositoryPath: canonicalPath,
-      boundAt: createdAt,
-    } satisfies BindingConfig);
+    try {
+      await mkdir(path.dirname(bindingPath), { recursive: true });
+      await writeJsonAtomic(bindingPath, {
+        schemaVersion: SCHEMA_VERSION,
+        repositoryPath: canonicalPath,
+        boundAt: createdAt,
+      } satisfies BindingConfig);
+    } catch {
+      throw new UplinkError(
+        "BINDING_WRITE_FAILED",
+        "The Repository was initialized, but Uplink could not create the device Binding.",
+        `Make the device config directory writable, then run \`uplink init\` again in ${canonicalPath}.`,
+        true,
+      );
+    }
     bindingCreated = true;
   }
 
@@ -198,7 +247,7 @@ export async function initializeRepository(repositoryPath: string): Promise<Init
 
 export async function getRepositoryStatus(): Promise<RepositoryStatus> {
   const bindingPath = path.join(configDirectory(), "binding.json");
-  const binding = await readJsonIfPresent<BindingConfig>(bindingPath);
+  const binding = await readBindingIfPresent(bindingPath);
   if (!binding) {
     throw new UplinkError(
       "REPOSITORY_NOT_BOUND",

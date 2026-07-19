@@ -77,7 +77,7 @@ async function main(): Promise<void> {
           code: details.code,
           message: details.message,
           event: `${command}.failed`,
-          formalRepositoryDataWritten: false,
+          formalRepositoryDataWritten: details.formalRepositoryDataWritten,
           operationId,
           recoveryAction: details.recoveryAction,
         },
